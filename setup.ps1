@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  bridge-clis one-click setup — installs deps, builds packages, registers
+  bridge-clis one-click setup : installs deps, builds packages, registers
   the launcher in user PATH, and registers the bridge MCP server with Claude.
 
 .DESCRIPTION
@@ -66,7 +66,7 @@ Ok "Node $nodeVer at $($nodeCmd.Source)"
 Step "Checking pnpm"
 $pnpmCmd = Get-Command pnpm -ErrorAction SilentlyContinue
 if (-not $pnpmCmd) {
-  Info "pnpm not found — trying to enable via corepack..."
+  Info "pnpm not found : trying to enable via corepack..."
   $corepack = Get-Command corepack -ErrorAction SilentlyContinue
   if ($corepack) {
     & corepack enable | Out-Null
@@ -104,7 +104,7 @@ try {
 # ---------- Step 5: PATH ----------
 Step "Registering launcher in user PATH"
 if (-not (Test-Path (Join-Path $LauncherDir 'bclaude.cmd'))) {
-  Fail "launcher not found at $LauncherDir — repo may be incomplete"
+  Fail "launcher not found at $LauncherDir : repo may be incomplete"
 }
 $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
 if ($null -eq $userPath) { $userPath = '' }
@@ -154,11 +154,11 @@ foreach ($d in (($env:Path -split ';') | Where-Object { $_ -ne '' })) {
   if ($claudeCmd) { break }
 }
 if (-not $claudeCmd) {
-  Warn "claude CLI not found in PATH — skipping MCP registration."
+  Warn "claude CLI not found in PATH : skipping MCP registration."
   Warn "Install Claude Code (npm install -g @anthropic-ai/claude-code or via Anthropic), then rerun this script (or just run: bclaude --master --register-only)."
 } else {
   $bridgeMcpPath = Join-Path $RepoRoot 'packages\bridge-mcp\dist\index.js'
-  if (-not (Test-Path $bridgeMcpPath)) { Fail "bridge-mcp dist missing — build step should have produced it" }
+  if (-not (Test-Path $bridgeMcpPath)) { Fail "bridge-mcp dist missing : build step should have produced it" }
 
   # Check existing registration
   $listed = & $claudeCmd mcp list 2>&1
@@ -168,7 +168,7 @@ if (-not $claudeCmd) {
   } else {
     & $claudeCmd mcp add bridge --scope user -- $nodeCmd.Source $bridgeMcpPath | Out-Null
     if ($LASTEXITCODE -ne 0) {
-      Warn "claude mcp add returned exit $LASTEXITCODE — you may need to register manually:"
+      Warn "claude mcp add returned exit $LASTEXITCODE : you may need to register manually:"
       Warn "  claude mcp add bridge --scope user -- `"$($nodeCmd.Source)`" `"$bridgeMcpPath`""
     } else {
       Ok "bridge MCP registered (user scope)"
@@ -197,7 +197,7 @@ if ($NoTest) {
 
     & pnpm test:smoke
     if ($LASTEXITCODE -ne 0) {
-      Warn "smoke test failed (exit $LASTEXITCODE) — setup completed but something is off."
+      Warn "smoke test failed (exit $LASTEXITCODE) : setup completed but something is off."
       Warn "Check ~/.bridge-clis/bridged.log and cb.log for diagnostics."
     } else {
       Ok "smoke test passed"
@@ -218,8 +218,8 @@ Write-Host "  3. Master:  bclaude --master"
 Write-Host "  4. Watch:   bclaude --watch"
 Write-Host ""
 Write-Host "Documentation:"
-Write-Host "  - DESIGN.md       — architecture"
-Write-Host "  - EXECUTION.md    — implementation plan"
-Write-Host "  - AUDIT.md        — security/quality status"
-Write-Host "  - launcher\README.md — bclaude usage"
+Write-Host "  - DESIGN.md       : architecture"
+Write-Host "  - EXECUTION.md    : implementation plan"
+Write-Host "  - AUDIT.md        : security/quality status"
+Write-Host "  - launcher\README.md : bclaude usage"
 Write-Host ""
