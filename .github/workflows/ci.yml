@@ -62,20 +62,50 @@ jobs:
       - name: build
         run: pnpm -r build
 
+      - name: probe node-pty native binding
+        shell: pwsh
+        run: |
+          Write-Host "=== Node + arch ==="
+          node -p "process.version + ' / ' + process.platform + ' / ' + process.arch"
+          Write-Host "=== node-pty resolve ==="
+          node -e "try { const pty = require('node-pty'); console.log('OK:', Object.keys(pty).join(',')); } catch (e) { console.error('FAIL:', e.stack); process.exit(1); }"
+          Write-Host "=== try spawn pwsh in PTY ==="
+          node -e "const pty = require('node-pty'); const c = pty.spawn('pwsh.exe', ['-NoLogo','-Command','Write-Host PROBE_OK; exit 0'], { cols:80, rows:24 }); let out=''; c.onData(d=>out+=d); c.onExit(e=>{ console.log('exit', JSON.stringify(e)); console.log('output:', out); process.exit(out.includes('PROBE_OK')?0:1); });"
+
+      - name: probe cb startup
+        shell: pwsh
+        run: |
+          $env:BRIDGE_DEBUG_EARLY = "1"
+          Write-Host "=== try running cb with --no-bridge (pure PTY, no daemon) ==="
+          node packages/cb/dist/index.js --no-bridge --label probe pwsh.exe -NoLogo -Command "Write-Host CB_PROBE_OK; exit 0" 2>&1 | Tee-Object -Variable cbOut
+          Write-Host "=== exit code: $LASTEXITCODE ==="
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "cb --no-bridge failed; aborting smoke"
+            exit 1
+          }
+
       - name: smoke test
         shell: pwsh
         run: |
           $env:BRIDGE_TEST_CI = "1"
           pnpm test:smoke
 
+      - name: stage bridge logs for upload
+        if: failure()
+        shell: pwsh
+        run: |
+          $src = Join-Path $env:USERPROFILE '.bridge-clis'
+          $dst = Join-Path $env:GITHUB_WORKSPACE 'bridge-logs-artifact'
+          New-Item -ItemType Directory -Path $dst -Force | Out-Null
+          if (Test-Path $src) { Copy-Item -Path (Join-Path $src '*') -Destination $dst -Recurse -Force -ErrorAction SilentlyContinue }
+          else { Set-Content -Path (Join-Path $dst 'no-bridge-dir.txt') -Value 'bridge directory did not exist' }
+
       - name: upload daemon logs on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: bridge-logs
-          path: |
-            ${{ runner.temp }}/../bridge-clis-logs/**
-            ${{ github.workspace }}/../.bridge-clis/**
+          path: bridge-logs-artifact/**
           if-no-files-found: ignore
 
       - name: dump bridge logs to console on failure
