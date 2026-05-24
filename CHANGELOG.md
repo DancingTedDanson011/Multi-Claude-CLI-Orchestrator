@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `/bridge <path>` argument support. Slash command now accepts an optional cwd path: `/bridge C:\dev\hwm` spawns a new worker terminal in that directory AND activates master mode in the current window, in one step.
+- `bridge_create_session({cwd, label?})` MCP tool: spawn a fresh worker terminal at an arbitrary cwd. Used by master when `/bridge` was invoked with a path argument. Validates the cwd exists, auto-derives a sanitized label from the basename. Locked to USER-typed paths only (the master prompt forbids spawning based on worker output).
 - `/bridge` slash command installed into `~/.claude/commands/` by setup.ps1. Activates Multi-Genie Orchestrator mode in any Claude Code session without a separate launcher.
 - `bridge_send_and_wait` MCP tool: combines paste + enter + wait_for_idle + read_tail in one call. Master cannot forget the wait step or politely ask permission to wait.
 - Auto-sanitization of invalid label characters in the worker launcher (spaces, slashes, etc. become hyphens, fallback to `session`).

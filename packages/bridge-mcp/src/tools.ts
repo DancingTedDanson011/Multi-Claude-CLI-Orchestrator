@@ -103,7 +103,7 @@ function pickWriteOpts(
 /**
  * Translate a daemon-side error code into a clearer MCP tool error message.
  * The daemon may return `force_disabled` when force was passed but
- * BRIDGE_ALLOW_FORCE is not set on the daemon side (defense-in-depth — we
+ * BRIDGE_ALLOW_FORCE is not set on the daemon side (defense-in-depth : we
  * already clamp in pickWriteOpts, but the daemon enforces too).
  */
 function translateDaemonError(err: Error): Error {
@@ -382,7 +382,7 @@ export function createHandlers(client: DaemonClient, gates: ToolGates): ToolHand
         throw translateDaemonError(err as Error);
       }
 
-      // Step 2: optionally press enter to submit (default true — almost always wanted).
+      // Step 2: optionally press enter to submit (default true : almost always wanted).
       if (sendEnter) {
         try {
           const enterBytes = keysToBytes(['enter']);
@@ -429,9 +429,48 @@ export function createHandlers(client: DaemonClient, gates: ToolGates): ToolHand
       };
     },
 
+    // Phase I: spawn a fresh worker terminal in an arbitrary cwd. Master uses
+    // this for `/bridge <path>` (user-typed path argument). DO NOT call based
+    // on worker output : that path is prompt-injection territory.
+    async bridge_create_session(args) {
+      const cwd = requireString(args['cwd'], 'cwd');
+      const fs = await import('node:fs');
+      const pathMod = await import('node:path');
+      // Validate cwd exists + is directory. Reject obvious garbage before
+      // wt.exe spawns and fails opaquely.
+      let stats;
+      try {
+        stats = fs.statSync(cwd);
+      } catch (e) {
+        throw new Error(`cwd does not exist: ${cwd} (${(e as Error).message})`);
+      }
+      if (!stats.isDirectory()) {
+        throw new Error(`cwd is not a directory: ${cwd}`);
+      }
+      // Derive label: explicit > basename. Sanitize via same rules as bclaude.ps1.
+      const labelInput =
+        (typeof args['label'] === 'string' && args['label'].length > 0)
+          ? args['label']
+          : pathMod.basename(cwd);
+      const label = sanitizeLabel(labelInput);
+      if (!/^[A-Za-z0-9._-]{1,64}$/.test(label)) {
+        throw new Error(`could not derive a valid label from '${labelInput}' (sanitized to '${label}')`);
+      }
+      let method: string;
+      try {
+        method = await spawnRestoreWindow(label, cwd);
+      } catch (e) {
+        throw new Error(`spawn failed: ${(e as Error).message}`);
+      }
+      return {
+        spawned: { label, cwd, method },
+        hint: `New terminal window is opening. Wait ~3s then call bridge_list to confirm the worker registered with label '${label}'.`,
+      };
+    },
+
     // Phase G: spawn fresh terminal windows for the requested labels, each
     // starting `bclaude --label <label>` in the original cwd. Sessions must
-    // exist in the persistence history — master cannot spawn arbitrary cwds.
+    // exist in the persistence history : master cannot spawn arbitrary cwds.
     async bridge_restore_sessions(args) {
       const labelsRaw = args['labels'];
       if (!Array.isArray(labelsRaw) || labelsRaw.length === 0) {
@@ -470,7 +509,7 @@ export function createHandlers(client: DaemonClient, gates: ToolGates): ToolHand
 
 /**
  * Phase G: spawn a new terminal window running `bclaude --label <label>` in
- * the given cwd. Tries Windows Terminal (wt.exe) first — modern default and
+ * the given cwd. Tries Windows Terminal (wt.exe) first : modern default and
  * gives proper title bars + cwd. Falls back to plain cmd.exe if wt.exe is
  * not on PATH. Detached + unrefed so we don't block.
  */
@@ -488,11 +527,11 @@ async function spawnRestoreWindow(label: string, cwd: string): Promise<string> {
       ],
       { detached: true, stdio: 'ignore', windowsHide: false },
     );
-    child.on('error', () => {/* swallow — we surface via reject path */});
+    child.on('error', () => {/* swallow : we surface via reject path */});
     child.unref();
     return 'wt.exe';
   }
-  // Fallback: plain cmd.exe "start" — opens a new console window.
+  // Fallback: plain cmd.exe "start" : opens a new console window.
   if (process.platform === 'win32') {
     const child = spawn(
       'cmd.exe',
@@ -505,10 +544,25 @@ async function spawnRestoreWindow(label: string, cwd: string): Promise<string> {
   throw new Error('No supported terminal launcher on this platform');
 }
 
+/**
+ * Mirror of the PowerShell Sanitize-Label helper in launcher/bclaude.ps1.
+ * Keeps the daemon-side LABEL_PATTERN (A-Za-z0-9._-, 1..64) happy by replacing
+ * invalid chars with '-', collapsing runs, trimming separators, and falling
+ * back to 'session' if nothing usable remains.
+ */
+function sanitizeLabel(raw: string): string {
+  if (!raw) return 'session';
+  let clean = raw.replace(/[^A-Za-z0-9._-]/g, '-');
+  clean = clean.replace(/-+/g, '-');
+  clean = clean.replace(/^[-._]+|[-._]+$/g, '');
+  if (clean.length > 64) clean = clean.substring(0, 64);
+  return clean || 'session';
+}
+
 function findOnPath(name: string): string | null {
   const sep = process.platform === 'win32' ? ';' : ':';
   const dirs = (process.env.PATH ?? '').split(sep).filter(Boolean);
-  // Synchronous fs check is fine here — happens once per restore call.
+  // Synchronous fs check is fine here : happens once per restore call.
   // We use a dynamic require to avoid pulling fs at top of the file unnecessarily.
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const fs = require('node:fs') as typeof import('node:fs');

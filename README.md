@@ -9,7 +9,7 @@
 [![Platform](https://img.shields.io/badge/platform-Windows-0078D6?logo=windows&logoColor=white)](#quick-start-windows)
 [![Node](https://img.shields.io/badge/Node-%E2%89%A520.10-43853d?logo=node.js&logoColor=white)](#development)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript&logoColor=white)](#development)
-[![MCP](https://img.shields.io/badge/MCP-13_tools-7c3aed)](#tools-the-master-gets)
+[![MCP](https://img.shields.io/badge/MCP-14_tools-7c3aed)](#tools-the-master-gets)
 
 Session persistence | Restore after reboot | Live dashboard | Async notifications | Race-protected inject | Credential redaction
 
@@ -56,6 +56,12 @@ bclaude --master
 claude
 > /bridge
 
+# /bridge can also auto-spawn a worker at a given path in one step:
+claude
+> /bridge C:\dev\handwerkmanager
+# spawns a new terminal with bclaude in that directory AND activates
+# master mode in this window
+
 # optional: live dashboard of all sessions
 bclaude --watch
 ```
@@ -70,7 +76,7 @@ Three components:
 
 1. `cb` (or `bclaude` via the launcher): transparent PTY wrapper. You see the same Claude UI as without it. Bytes flow through a Named Pipe to the daemon.
 2. `bridged`: single-instance background daemon. Holds per-session state (raw ring buffer, headless xterm render, dead-session retention). Spawned on demand by the first `cb`.
-3. `bridge-mcp`: MCP server spawned by master Claude. Speaks the same Named Pipe protocol. Exposes 13 tools.
+3. `bridge-mcp`: MCP server spawned by master Claude. Speaks the same Named Pipe protocol. Exposes 14 tools.
 
 All local, all single-user. The pipe is owner-only via a per-daemon shared secret in `~/.bridge-clis/daemon.secret`.
 
@@ -90,6 +96,7 @@ All local, all single-user. The pipe is owner-only via a per-daemon shared secre
 | `bridge_send_and_wait` | **default for "send a prompt and get the answer back"**: paste + enter + wait + read in one call |
 | `bridge_notifications` | drain async events (worker done, session died, new session added) |
 | `bridge_session_history` | persisted log across daemon restarts |
+| `bridge_create_session` | spawn a new worker terminal in the given cwd (used by `/bridge <path>`) |
 | `bridge_restore_sessions` | spawn new terminal windows for previous sessions |
 
 ## Three-terminal workflow
