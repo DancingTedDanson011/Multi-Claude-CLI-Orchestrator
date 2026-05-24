@@ -287,11 +287,33 @@ if ($opts.Master) {
 # -----------------------------------------------------------------------------
 # Worker mode (default)
 # -----------------------------------------------------------------------------
-$workerLabel = if ($opts.Label) { $opts.Label } else { Split-Path -Leaf (Get-Location).Path }
-if (-not $workerLabel) { $workerLabel = 'session' }
+function Sanitize-Label {
+  param([string] $raw)
+  if (-not $raw) { return 'session' }
+  # Replace any char outside the allowed audit-safe set with a hyphen.
+  # Allowed: A-Z a-z 0-9 . _ -  (matches LABEL_PATTERN in shared/constants.ts)
+  $clean = $raw -replace '[^A-Za-z0-9._-]', '-'
+  # Collapse runs of hyphens that the replacement just introduced.
+  $clean = $clean -replace '-+', '-'
+  # Trim leading/trailing separator chars so the label looks clean.
+  $clean = $clean.Trim('-', '.', '_')
+  if ($clean.Length -gt 64) { $clean = $clean.Substring(0, 64) }
+  if (-not $clean) { return 'session' }
+  return $clean
+}
 
+$rawLabel = if ($opts.Label) { $opts.Label } else { Split-Path -Leaf (Get-Location).Path }
+$workerLabel = Sanitize-Label $rawLabel
+
+if ($workerLabel -ne $rawLabel) {
+  Write-Host "[bclaude] label '$rawLabel' sanitized to '$workerLabel' (pass --label explicitly to override)" -ForegroundColor DarkGray
+}
+
+# Defensive: the daemon also validates against LABEL_PATTERN. If the
+# sanitizer produced something the daemon would reject (should never happen),
+# bail clearly here rather than later in handshake.
 if ($workerLabel -notmatch '^[A-Za-z0-9._-]{1,64}$') {
-  Write-Host "[bclaude] label '$workerLabel' contains invalid characters. Allowed: A-Z a-z 0-9 . _ -" -ForegroundColor Red
+  Write-Host "[bclaude] internal: sanitized label '$workerLabel' still invalid. Use --label <name>." -ForegroundColor Red
   exit 2
 }
 
