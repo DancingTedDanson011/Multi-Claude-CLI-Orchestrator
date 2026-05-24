@@ -1,0 +1,13 @@
+{
+  "name": "bridge-clis-spike",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "spike": "node render-test.mjs"
+  },
+  "dependencies": {
+    "node-pty": "^1.0.0",
+    "@xterm/headless": "^5.5.0"
+  }
+}

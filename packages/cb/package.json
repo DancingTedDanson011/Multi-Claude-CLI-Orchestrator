@@ -1,0 +1,20 @@
+{
+  "name": "@bridge-clis/cb",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "cb": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "@bridge-clis/shared": "workspace:*",
+    "node-pty": "^1.0.0",
+    "ulid": "^2.3.0"
+  }
+}

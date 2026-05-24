@@ -1,0 +1,30 @@
+node_modules/
+dist/
+dist-bundle/
+
+*.log
+*.tsbuildinfo
+
+.DS_Store
+Thumbs.db
+
+spike/snapshot.txt
+spike/node_modules/
+
+coverage/
+.vitest/
+
+.pnpm-store/
+.turbo/
+
+# editor noise
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# local-only env overrides
+.env
+.env.local
+.env.*.local

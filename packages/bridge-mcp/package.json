@@ -1,0 +1,19 @@
+{
+  "name": "@bridge-clis/bridge-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "bridge-mcp": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "@bridge-clis/shared": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  }
+}
