@@ -108,6 +108,7 @@ jobs:
         shell: pwsh
         run: |
           $env:BRIDGE_TEST_CI = "1"
+          $env:BRIDGE_CB_DEBUG = "1"
           pnpm test:smoke
 
       - name: stage bridge logs for upload

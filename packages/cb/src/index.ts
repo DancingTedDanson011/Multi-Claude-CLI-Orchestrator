@@ -8,6 +8,20 @@
 // Output discipline: nothing ever goes to the user's terminal except via PTY passthrough.
 // All daemon-related errors are written silently to ~/.bridge-clis/cb.log.
 
+// CI-debug only: when BRIDGE_CB_DEBUG is set, dump every uncaught error to
+// stderr immediately. Otherwise cb stays silent (transparent wrapper contract).
+if (process.env['BRIDGE_CB_DEBUG']) {
+  process.stderr.write(`[cb-debug] pid=${process.pid} starting, argv=${JSON.stringify(process.argv)}\n`);
+  process.on('uncaughtException', (e) => {
+    process.stderr.write(`[cb-debug] uncaughtException: ${(e as Error).stack ?? String(e)}\n`);
+    process.exit(91);
+  });
+  process.on('unhandledRejection', (e) => {
+    process.stderr.write(`[cb-debug] unhandledRejection: ${e instanceof Error ? e.stack ?? e.message : String(e)}\n`);
+    process.exit(92);
+  });
+}
+
 import path from 'node:path';
 import { ulid } from 'ulid';
 import { log } from './log.js';

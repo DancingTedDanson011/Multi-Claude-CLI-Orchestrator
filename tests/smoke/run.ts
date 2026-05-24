@@ -55,9 +55,11 @@ function spawnCb(label: string): SpawnedCb {
     throw new Error(`cb entry not found: ${CB_ENTRY}. Run \`pnpm -r build\` first.`);
   }
   // Use node directly (avoids needing cb to be installed in PATH).
-  // `cb --label <label> pwsh` — pwsh on Windows, fall back to powershell.exe.
+  // Always pass the .exe extension on Windows — ConPTY's CreateProcessW does
+  // not auto-resolve PATHEXT in every context, so 'pwsh' alone can fail to
+  // spawn on CI runners while 'pwsh.exe' works reliably.
   const inner = process.platform === 'win32'
-    ? (commandExists('pwsh') ? 'pwsh' : 'powershell.exe')
+    ? (commandExists('pwsh.exe') ? 'pwsh.exe' : 'powershell.exe')
     : 'bash'; // smoke test is Windows-focused; bash fallback is for dev only
 
   const child = spawn(process.execPath, [CB_ENTRY, '--label', label, inner], {
