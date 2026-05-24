@@ -21,8 +21,9 @@
 
 import { spawn, type ChildProcess, execSync } from 'node:child_process';
 import { Buffer } from 'node:buffer';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, resolve, join } from 'node:path';
+import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { PipeHelper, sleep } from './pipe-helper.js';
 
@@ -47,7 +48,9 @@ function assert(cond: unknown, msg: string) {
 
 function step(name: string) { log(`>> ${name}`); }
 
-function spawnCb(label: string): ChildProcess {
+type SpawnedCb = ChildProcess & { _capturedStderr: string };
+
+function spawnCb(label: string): SpawnedCb {
   if (!existsSync(CB_ENTRY)) {
     throw new Error(`cb entry not found: ${CB_ENTRY}. Run \`pnpm -r build\` first.`);
   }
@@ -62,11 +65,25 @@ function spawnCb(label: string): ChildProcess {
     stdio: ['pipe', 'pipe', 'pipe'],
     env: { ...process.env, FORCE_COLOR: '0', NO_COLOR: '1' },
     windowsHide: true,
-  });
+  }) as SpawnedCb;
 
-  // Drain stdout/stderr to /dev/null-equivalent so the process doesn't block
+  // Drain stdout to avoid backpressure stalling cb.
   child.stdout?.on('data', () => { /* swallow */ });
-  child.stderr?.on('data', () => { /* swallow */ });
+  // Capture stderr for failure diagnostics.
+  child._capturedStderr = '';
+  child.stderr?.on('data', (chunk: Buffer) => {
+    child._capturedStderr += chunk.toString('utf8');
+    // Cap to avoid runaway memory if cb spews — keep last 64KB.
+    if (child._capturedStderr.length > 65_536) {
+      child._capturedStderr = child._capturedStderr.slice(-65_536);
+    }
+  });
+  child.on('exit', (code, signal) => {
+    log(`  [debug] cb '${label}' exited code=${code} signal=${signal}`);
+    if (child._capturedStderr) {
+      log(`  [debug] cb '${label}' stderr tail:\n${child._capturedStderr.split('\n').slice(-20).join('\n')}`);
+    }
+  });
 
   return child;
 }
@@ -79,6 +96,47 @@ function commandExists(cmd: string): boolean {
   } catch {
     return false;
   }
+}
+
+/**
+ * On smoke failure, dump everything useful so CI artifact upload / console
+ * shows what actually went wrong. Distinguishes the most common case
+ * (daemon never started → no logs, no secret) from log-present cases.
+ */
+function dumpDiagnosticsOnFailure(cbs: Array<ChildProcess | null>): void {
+  const bd = join(os.homedir(), '.bridge-clis');
+  log('');
+  log('======= FAILURE DIAGNOSTICS =======');
+  log(`bridge dir: ${bd}`);
+  if (!existsSync(bd)) {
+    log('  (directory does not exist — daemon never started)');
+  } else {
+    let entries: string[] = [];
+    try { entries = readdirSync(bd); } catch { /* ignore */ }
+    log(`  entries: ${JSON.stringify(entries)}`);
+    for (const name of ['cb.log', 'bridged.log', 'bridge-mcp.log']) {
+      const p = join(bd, name);
+      if (existsSync(p)) {
+        try {
+          const body = readFileSync(p, 'utf8');
+          const tail = body.split('\n').slice(-40).join('\n');
+          log(`--- ${name} (last 40 lines) ---`);
+          log(tail);
+        } catch (e) {
+          log(`  (could not read ${name}: ${(e as Error).message})`);
+        }
+      } else {
+        log(`  ${name}: not present`);
+      }
+    }
+  }
+  for (let i = 0; i < cbs.length; i++) {
+    const c = cbs[i] as (ChildProcess & { _capturedStderr?: string }) | null;
+    if (!c) continue;
+    log(`--- cb[${i}] stderr (captured) ---`);
+    log(c._capturedStderr || '(empty)');
+  }
+  log('===================================');
 }
 
 function findDaemonPids(): number[] {
@@ -107,13 +165,19 @@ async function main() {
     s1 = spawnCb('s1');
     s2 = spawnCb('s2');
 
-    // Give the daemon time to spawn + both cb to register
-    await sleep(3000);
+    // Give the daemon time to spawn + both cb to register. CI runners are
+    // slower than dev machines (cold disk, busy noisy neighbour), so we use
+    // BRIDGE_TEST_CI=1 to bump the wait window.
+    const isCi = process.env['BRIDGE_TEST_CI'] === '1';
+    const initialWaitMs = isCi ? 8000 : 3000;
+    const connectTimeoutMs = isCi ? 15_000 : 5_000;
+    log(`  isCi=${isCi} initialWait=${initialWaitMs}ms connectTimeout=${connectTimeoutMs}ms`);
+    await sleep(initialWaitMs);
 
     // ---- step 2: connect helper ----
     step('connect to daemon pipe');
     helper = new PipeHelper();
-    await helper.connect(5000);
+    await helper.connect(connectTimeoutMs);
     log('  connected');
 
     // ---- step 3: list ----
@@ -252,6 +316,7 @@ async function main() {
     log(`UNCAUGHT: ${(err as Error).stack ?? err}`);
     failures.push(`Uncaught: ${(err as Error).message}`);
     exitCode = 1;
+    dumpDiagnosticsOnFailure([s1, s2]);
   } finally {
     // Cleanup
     if (helper) try { helper.close(); } catch { /* ignore */ }

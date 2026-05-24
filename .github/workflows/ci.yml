@@ -74,6 +74,28 @@ jobs:
         with:
           name: bridge-logs
           path: |
-            ~/.bridge-clis/*.log
-            ~/.bridge-clis/sessions.json
+            ${{ runner.temp }}/../bridge-clis-logs/**
+            ${{ github.workspace }}/../.bridge-clis/**
           if-no-files-found: ignore
+
+      - name: dump bridge logs to console on failure
+        if: failure()
+        shell: pwsh
+        run: |
+          $bd = Join-Path $env:USERPROFILE '.bridge-clis'
+          Write-Host "=== bridge dir: $bd ==="
+          if (Test-Path $bd) {
+            Get-ChildItem $bd | Format-Table -AutoSize | Out-Host
+            foreach ($f in @('cb.log','bridged.log','bridge-mcp.log')) {
+              $p = Join-Path $bd $f
+              if (Test-Path $p) {
+                Write-Host ""
+                Write-Host "--- $f ---"
+                Get-Content $p -Tail 60
+              } else {
+                Write-Host "$f : not present"
+              }
+            }
+          } else {
+            Write-Host "(directory does not exist - daemon never started)"
+          }
