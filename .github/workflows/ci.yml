@@ -29,9 +29,11 @@ jobs:
       - name: pnpm install
         run: pnpm install --frozen-lockfile
 
-      - name: typecheck
-        run: pnpm -r typecheck
-
+      # build runs `tsc -p tsconfig.json` per package, which both typechecks
+      # AND emits .d.ts. Composite project references require the producer's
+      # dist to exist before consumers can typecheck, so we do build only
+      # (a separate `--noEmit` typecheck step would fail with TS2307 before
+      # shared has emitted).
       - name: build
         run: pnpm -r build
 
