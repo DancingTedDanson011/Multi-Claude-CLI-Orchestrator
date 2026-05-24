@@ -119,6 +119,30 @@ if ($parts -contains $LauncherDir) {
   Ok "added $LauncherDir to user PATH"
 }
 
+# ---------- Step 6a: install /bridge slash command ----------
+Step "Installing /bridge slash command for Claude Code"
+$cmdDir = Join-Path $env:USERPROFILE '.claude\commands'
+if (-not (Test-Path $cmdDir)) {
+  New-Item -ItemType Directory -Path $cmdDir -Force | Out-Null
+  Info "created $cmdDir"
+}
+$promptSrc = Join-Path $LauncherDir 'master-prompt.md'
+$bridgeMd  = Join-Path $cmdDir 'bridge.md'
+if (-not (Test-Path $promptSrc)) {
+  Warn "master-prompt.md missing at $promptSrc, skipping /bridge install"
+} else {
+  $body = Get-Content -Raw -LiteralPath $promptSrc
+  $frontmatter = @"
+---
+description: Activate Multi-Claude Orchestrator mode (master with 13 bridge_* tools)
+---
+
+"@
+  Set-Content -LiteralPath $bridgeMd -Value ($frontmatter + $body) -Encoding utf8
+  Ok "/bridge slash command installed at $bridgeMd"
+  Info "Use it via: type '/bridge' in any claude session"
+}
+
 # ---------- Step 6: MCP registration ----------
 Step "Registering bridge MCP server with Claude Code"
 $claudeCmd = $null

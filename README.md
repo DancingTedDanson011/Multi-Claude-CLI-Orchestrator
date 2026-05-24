@@ -52,11 +52,17 @@ bclaude
 # in a separate terminal: master with the bridge MCP loaded
 bclaude --master
 
+# OR: inside any normal claude session, type the slash command
+claude
+> /bridge
+
 # optional: live dashboard of all sessions
 bclaude --watch
 ```
 
-The setup script installs dependencies, builds the four TypeScript packages, adds the launcher to your user PATH, registers the bridge MCP server with Claude Code, and runs the smoke suite to confirm everything works.
+The setup script installs dependencies, builds the four TypeScript packages, adds the launcher to your user PATH, registers the bridge MCP server with Claude Code, installs the `/bridge` slash command into `~/.claude/commands/`, and runs the smoke suite to confirm everything works.
+
+After setup, `/bridge` is available in any Claude Code session and switches it into multi-genie orchestrator mode without needing a separate launcher.
 
 ## How it works (90 seconds)
 

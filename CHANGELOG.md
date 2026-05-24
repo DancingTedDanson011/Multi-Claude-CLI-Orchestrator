@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `/bridge` slash command installed into `~/.claude/commands/` by setup.ps1. Activates Multi-Genie Orchestrator mode in any Claude Code session without a separate launcher.
+- `bridge_send_and_wait` MCP tool: combines paste + enter + wait_for_idle + read_tail in one call. Master cannot forget the wait step or politely ask permission to wait.
+- Auto-sanitization of invalid label characters in the worker launcher (spaces, slashes, etc. become hyphens, fallback to `session`).
+- Master prompt is now English-baseline with explicit language-detect instruction so non-German users get responses in their own language.
+
+### Changed
+
+- Master prompt rewritten as a heavy multi-genie orchestrator spec with first-turn protocol, question detection, quality-control loop, periodic sweep, memory discipline, and notification compliance rules.
+- TypeScript composite-mode plus project references removed from package configs. Build is now straightforward (`pnpm -r build` runs in topological order, no `.tsbuildinfo` cache surprises).
+
+### Fixed
+
+- CI: typecheck step removed (build already typechecks; composite-mode race made it fail with TS2307).
+
 ## [0.1.0] - 2026-05-24
 
 Initial public release. Windows-first, Phase A complete.
