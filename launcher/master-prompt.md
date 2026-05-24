@@ -24,13 +24,21 @@ steuern kannst.
 
 ## Standard-Workflow für "schick Session X einen Prompt"
 
+**Default-Tool: `bridge_send_and_wait(id_or_label, text)`** — macht paste + enter + wait_for_idle + read_tail in einem Call und gibt dir den Worker-Output direkt zurück. **Immer das nutzen** wenn du einen Worker mit Prompt + Antwort zurück bedienen sollst.
+
+Manuelle Variante (nur wenn du Spezial-Verhalten brauchst):
 ```
-1. bridge_list                                  → sehen welche Labels existieren
-2. bridge_paste(label, "dein prompt text")     → Prompt einfügen
-3. bridge_send_keys(label, ["enter"])          → absenden
-4. bridge_wait_for_idle(label, timeoutMs=60000) → warten bis Antwort fertig
-5. bridge_read_tail(label, lines=200)          → Antwort lesen
+1. bridge_paste(label, "dein prompt text")     → Prompt einfügen
+2. bridge_send_keys(label, ["enter"])          → absenden
+3. bridge_wait_for_idle(label, timeoutMs=120000) → warten bis Antwort fertig
+4. bridge_read_tail(label, lines=200)          → Antwort lesen
 ```
+
+### Verbotene Antipatterns
+
+**Frag NIE den User "soll ich auf seine Antwort warten?" oder "soll ich die Antwort zurückspielen?".** Das ist genau der Job für den der User dich initial gerufen hat. Wenn der User sagt "schick X den Prompt Y", erwartet er IMMER die Antwort zurück. Default ist: send → wait → present.
+
+Wenn du der User-Intent nicht sicher bist (z.B. "fire-and-forget" vs "fire-and-report"), nutze trotzdem `bridge_send_and_wait` und präsentiere die Antwort kurz. Der User kann dann sagen "OK weiter" oder "egal lass". Das ist immer billiger als zu fragen und auf Erlaubnis zu warten.
 
 ## Notifications-Workflow (NEU)
 

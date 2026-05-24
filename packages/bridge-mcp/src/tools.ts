@@ -351,6 +351,84 @@ export function createHandlers(client: DaemonClient, gates: ToolGates): ToolHand
       return value;
     },
 
+    // Convenience: send a prompt to a worker AND wait for its answer AND
+    // return the result, all in one tool call. Replaces the manual chain
+    // bridge_paste -> bridge_send_keys[enter] -> bridge_wait_for_idle ->
+    // bridge_read_tail that master Claudes frequently forget to complete
+    // (asking the user "should I wait?" instead of just doing it).
+    async bridge_send_and_wait(args) {
+      const idOrLabel = pickIdOrLabel(args);
+      const text = requireString(args['text'], 'text');
+      const sendEnter = optionalBool(args['send_enter'], 'send_enter', true);
+      const waitTimeoutMs = optionalInt(args['wait_timeout_ms'], 'wait_timeout_ms', 120_000);
+      if (waitTimeoutMs < 1000 || waitTimeoutMs > 600_000) {
+        throw new Error('wait_timeout_ms must be 1000..600000');
+      }
+      const readLines = optionalInt(args['read_lines'], 'read_lines', 120);
+      if (readLines < 1 || readLines > 10_000) {
+        throw new Error('read_lines must be 1..10000');
+      }
+      const { waitForUserIdleMs, force } = pickWriteOpts(args, gates);
+
+      // Step 1: paste the prompt (bracketed, like bridge_paste).
+      const pasteBytes = Buffer.from(text, 'utf8');
+      let injected = 0;
+      try {
+        const pasteResult = await client.request<InjectResult>((reqId) =>
+          buildInject(reqId, idOrLabel, pasteBytes, true, 'paste', waitForUserIdleMs, force),
+        );
+        injected += pasteResult.written;
+      } catch (err) {
+        throw translateDaemonError(err as Error);
+      }
+
+      // Step 2: optionally press enter to submit (default true — almost always wanted).
+      if (sendEnter) {
+        try {
+          const enterBytes = keysToBytes(['enter']);
+          const enterResult = await client.request<InjectResult>((reqId) =>
+            // force=true here: we just successfully paste'd, race-protection
+            // already won; sending enter on top is part of the same atomic action.
+            buildInject(reqId, idOrLabel, enterBytes, false, 'send_keys', 0, true),
+          );
+          injected += enterResult.written;
+        } catch (err) {
+          throw translateDaemonError(err as Error);
+        }
+      }
+
+      // Step 3: wait for worker to become idle (= finished its reply).
+      const idleResult = await client.request<WaitForIdleResult>(
+        (reqId) => ({
+          t: 'wait_for_idle',
+          reqId,
+          idOrLabel,
+          timeoutMs: waitTimeoutMs,
+          stableTicks: WAIT_FOR_IDLE_DEFAULT_STABLE_TICKS,
+        }),
+        waitTimeoutMs + 5_000,
+      );
+
+      // Step 4: read the tail so master can show the answer to the user.
+      const tailResult = await client.request<TailSnapshot>((reqId) => ({
+        t: 'read_tail',
+        reqId,
+        idOrLabel,
+        lines: readLines,
+      }));
+
+      return {
+        injected,
+        idle: idleResult.idle,
+        idleMs: idleResult.ms,
+        tail: tailResult.text,
+        truncated: tailResult.truncated,
+        ...(idleResult.idle
+          ? {}
+          : { warning: 'Worker did not become idle within wait_timeout_ms. Tail shows partial output. Re-call bridge_wait_for_idle or bridge_read_tail to check again.' }),
+      };
+    },
+
     // Phase G: spawn fresh terminal windows for the requested labels, each
     // starting `bclaude --label <label>` in the original cwd. Sessions must
     // exist in the persistence history — master cannot spawn arbitrary cwds.

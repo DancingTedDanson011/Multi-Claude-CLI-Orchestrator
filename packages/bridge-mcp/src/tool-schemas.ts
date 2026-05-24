@@ -268,6 +268,36 @@ export function buildToolDescriptors(gates: ToolGates): ToolDescriptor[] {
       },
     },
     {
+      name: 'bridge_send_and_wait',
+      description:
+        '**Empfohlenes Default-Tool für "schick X den Prompt Y und gib mir die Antwort".** Macht in einem Call: bridge_paste(text) + send_keys[enter] + wait_for_idle + read_tail. Master fragt NIE mehr "soll ich warten?" — dieses Tool wartet und liefert die Antwort zurück. Nutze es immer wenn du einen Worker mit einem Prompt fütterst und die Antwort sehen willst.',
+      inputSchema: {
+        type: 'object',
+        required: ['id_or_label', 'text'],
+        additionalProperties: false,
+        properties: {
+          id_or_label: idOrLabel,
+          text: {
+            type: 'string',
+            description: 'Der Prompt-Text der dem Worker geschickt werden soll. Mehrzeilig OK (wird bracketed-paste).',
+          },
+          send_enter: {
+            type: 'boolean', default: true,
+            description: 'Drückt Enter nach dem Paste (Default true — Claude Code submitted bei Enter).',
+          },
+          wait_timeout_ms: {
+            type: 'integer', minimum: 1000, maximum: 600_000, default: 120_000,
+            description: 'Wie lange auf Worker-Idle warten. Default 2min, max 10min.',
+          },
+          read_lines: {
+            type: 'integer', minimum: 1, maximum: 10_000, default: 120,
+            description: 'Wie viele Tail-Zeilen vom Worker-Output zurückgeben.',
+          },
+          ...writeOpts,
+        },
+      },
+    },
+    {
       name: 'bridge_session_history',
       description:
         'Persistierter Verlauf aller bridged Sessions über Daemon-Restarts hinweg. Nutze dies nach PC-Neustart, um zu sehen was zuletzt lief — dann optional bridge_restore_sessions aufrufen.',
