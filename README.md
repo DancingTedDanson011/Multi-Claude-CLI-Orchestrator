@@ -1,6 +1,27 @@
+<div align="center">
+
 # Multi-Claude CLI Orchestrator
 
-One master Claude controls many worker Claude Code sessions across terminals via MCP. Session persistence, restore after reboot, live dashboard, async notifications. Windows-first.
+**tmux for Claude Code agents.** One master Claude reads and controls many worker Claude Code sessions running across your terminals, via the Model Context Protocol.
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![CI](https://github.com/DancingTedDanson011/Multi-Claude-CLI-Orchestrator/actions/workflows/ci.yml/badge.svg)](https://github.com/DancingTedDanson011/Multi-Claude-CLI-Orchestrator/actions/workflows/ci.yml)
+[![Platform](https://img.shields.io/badge/platform-Windows-0078D6?logo=windows&logoColor=white)](#quick-start-windows)
+[![Node](https://img.shields.io/badge/Node-%E2%89%A520.10-43853d?logo=node.js&logoColor=white)](#development)
+[![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript&logoColor=white)](#development)
+[![MCP](https://img.shields.io/badge/MCP-12_tools-7c3aed)](#tools-the-master-gets)
+
+Session persistence | Restore after reboot | Live dashboard | Async notifications | Race-protected inject | Credential redaction
+
+</div>
+
+---
+
+## Status
+
+Phase A is feature-complete on Windows. The smoke suite covers the full end-to-end path. A multi-auditor pass cleared 6 CRITICAL plus 6 load-bearing HIGH findings before this initial release. Daily-driven by the author.
+
+Open source under the **MIT license**: free for any use, personal or commercial, with attribution. Fork it, ship it, build on it. See [LICENSE](LICENSE).
 
 ## What it does
 
@@ -145,4 +166,6 @@ Phase A (Windows + Claude Code) is feature-complete and battle-tested via the in
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT. Free for any use, personal or commercial, with attribution. Fork it, ship it, build on it. See [LICENSE](LICENSE) for the legal text.
+
+If you build something on top of this and want to share it, open an issue or PR. Not required, just appreciated.
