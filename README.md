@@ -68,7 +68,16 @@ bclaude --watch
 
 The setup script installs dependencies, builds the four TypeScript packages, adds the launcher to your user PATH, registers the bridge MCP server with Claude Code, installs the `/bridge` slash command into `~/.claude/commands/`, and runs the smoke suite to confirm everything works.
 
-After setup, `/bridge` is available in any Claude Code session and switches it into multi-genie orchestrator mode without needing a separate launcher.
+After setup, `/bridge` is available in any Claude Code session and switches it into multi-genie orchestrator (master) mode without needing a separate launcher.
+
+`/bridge` argument forms:
+
+| Invocation | Effect |
+|---|---|
+| `/bridge` or `/bridge master` | Activate master mode in the current window |
+| `/bridge C:\path\to\project` | Spawn a new worker terminal at that path AND activate master here |
+| `/bridge worker` | Prints an error: a running claude session cannot be retrofitted as a worker (PTY wrapping must happen at process start). Use `bclaude` from a fresh project terminal instead |
+| `/bridge <any other text>` | Master mode plus the text becomes the first user message |
 
 ## How it works (90 seconds)
 
